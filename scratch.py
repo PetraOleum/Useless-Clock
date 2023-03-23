@@ -63,7 +63,7 @@ def textDecimalTime(time_now, tz_options):
     tz_name = choice(tz_options)
     tz_choice = pytz.timezone(tz_name)
     decimal_time = decimalTime(time_now, tz_choice)
-    decimal_text = "It's {}h{} decimal time in {}".format(decimal_time[0], decimal_time[1],
+    decimal_text = "It's {}h{:02d} decimal time in {}".format(decimal_time[0], decimal_time[1],
                                              tz_name)
     if tz_name in pytz.country_timezones["fr"]:
         decimal_text = decimal_text + ". Vive la révolution!"
