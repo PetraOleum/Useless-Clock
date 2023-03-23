@@ -2,7 +2,7 @@
 import pytz
 import datetime as dt
 from math import floor
-from random import shuffle, choice
+from random import shuffle, choice, randint
 
 tz
 
@@ -59,7 +59,7 @@ def decimalTime(time_now, time_zone=None):
     return (decimal_hours, decimal_mins, decimal_secs)
 
 
-def textDecimalTime(time_now, tz_options, weight=200):
+def textDecimalTime(time_now, tz_options):
     tz_name = choice(tz_options)
     tz_choice = pytz.timezone(tz_name)
     decimal_time = decimalTime(time_now, tz_choice)
@@ -67,7 +67,7 @@ def textDecimalTime(time_now, tz_options, weight=200):
                                              tz_name)
     if tz_name in pytz.country_timezones["fr"]:
         decimal_text = decimal_text + ". Vive la révolution!"
-    return (decimal_text, weight)
+    return decimal_text
 
 
 def timeBeats(time_now):
@@ -75,10 +75,10 @@ def timeBeats(time_now):
     return "@{}".format(utc1_dec[0] * 100 + utc1_dec[1])
 
 
-def textBeats(time_now, weight=50):
+def textBeats(time_now):
     beats_time = timeBeats(time_now)
     beats_text = "Set your watches, it's {} internet time!".format(beats_time)
-    return (beats_text, weight)
+    return beats_text
 
 
 def IFCDate(time_now, time_zone=None):
@@ -142,7 +142,7 @@ def IFCMonthName(ifc_date):
     return months_ifc[(ifc_date[1] - 1)]
 
 
-def textIFC(time_now, tz_options, weight=25):
+def textIFC(time_now, tz_options):
     tz_name = choice(tz_options)
     tz_choice = pytz.timezone(tz_name)
     IFC_date = IFCDate(time_now, tz_choice)
@@ -153,7 +153,7 @@ def textIFC(time_now, tz_options, weight=25):
         IFC_date[0],
         tz_name
     )
-    return (IFC_text, weight)
+    return (IFC_text)
 
 
 def fiveOClockSomewhere(time_now, tz_list, tries = 200, tol = 30):
@@ -173,17 +173,17 @@ def fiveOClockSomewhere(time_now, tz_list, tries = 200, tol = 30):
     return None
 
 
-def text5OClock(time_now, tz_options, weight=50):
+def text5OClock(time_now, tz_options):
     found_tz = fiveOClockSomewhere(time_now, tz_options)
     if found_tz is None:
-        return (None, weight)
+        return None
     if found_tz[1] < 0:
         text = "It's {} minute{} to 5pm in {}"
     else:
         text = "It's {} minute{} past 5pm in {}"
-    return(text.format(round(abs(found_tz[1])),
+    return text.format(round(abs(found_tz[1])),
                        ("" if round(abs(found_tz[1])) == 1 else "s"),
-                       found_tz[0]), weight)
+                       found_tz[0])
 
 
 def findTZChanges(time_now, tz):
@@ -219,6 +219,22 @@ def nextTZChange(time_now, tz):
             tzchanges_past[-1]["tzName"], tzchanges_future[0]["tzName"])
 
 
+def textNextOffset(time_now, tz_options):
+    shuffle(tz_options)
+    tries = 200
+    tz_list_subset = tz_options[:tries]
+    for tz_name in tz_list_subset:
+        tz_obj = pytz.timezone(tz_name)
+        ntz = nextTZChange(time_now, tz_obj)
+        if ntz is not None:
+            ntz_text = ("The next time zone change for {} will be from {} to "
+                        "{} in about {} days").format(
+                            tz_name, ntz[2], ntz[3],
+                            round(ntz[0].total_seconds()/(60*60*24)))
+            return ntz_text
+    return None
+
+
 def lastTZChange(time_now, tz):
     tzchanges = findTZChanges(time_now, tz)
     tzchanges_past = [t for t in tzchanges
@@ -227,6 +243,29 @@ def lastTZChange(time_now, tz):
         return None
     return (tzchanges_past[-1]["fromNow"], tzchanges_past[-1]["start"],
             tzchanges_past[-2]["tzName"], tzchanges_past[-1]["tzName"])
+
+
+def textLastOffset(time_now, tz_options):
+    shuffle(tz_options)
+    tries = 200
+    tz_list_subset = tz_options[:tries]
+    for tz_name in tz_list_subset:
+        tz_obj = pytz.timezone(tz_name)
+        ntz = lastTZChange(time_now, tz_obj)
+        if ntz is not None:
+            dago = -ntz[0].total_seconds()/(60*60*24)
+            if dago < 500:
+                ago_text = "{} days".format(round(dago))
+            elif dago < 3000:
+                ago_text = "{} years".format(round(dago/365.25, 1))
+            else:
+                ago_text = "{} years".format(round(dago/365.25))
+            ntz_text = ("The last time zone change for {} was from {} to "
+                        "{} about {} ago").format(
+                            tz_name, ntz[2], ntz[3],
+                            ago_text)
+            return ntz_text
+    return None
 
 
 def formerOffset(time_now, tz, tolerance_days = 366):
@@ -261,17 +300,76 @@ def formerOffset(time_now, tz, tolerance_days = 366):
     return valid_dates
 
 
-fiveOClockSomewhere(tnowUTC, pytz.common_timezones)
-fiveOClockSomewhere(tnowUTC, pytz.all_timezones)
+def textFormerOffset(time_now, tz_options):
+    tnow_year = time_now.year
+    shuffle(tz_options)
+    tries = 200
+    tz_list_subset = tz_options[:tries]
+    for tz_name in tz_list_subset:
+        tz_obj = pytz.timezone(tz_name)
+        f_offsets = formerOffset(time_now, tz_obj)
+        if len(f_offsets) > 0:
+            chosen_time = max(f_offsets)
+            tnow_local = time_now.astimezone(tz_obj)
+            now_offset = tnow_local.utcoffset()
+            then_offset = chosen_time.utcoffset()
+            mins_later = round((now_offset - then_offset).total_seconds() / 60)
+            if mins_later > 0:
+                mins_text = "{} minutes later".format(mins_later)
+            else:
+                mins_text = "{} minutes earlier".format(-mins_later)
+            ct_utc_year = chosen_time.astimezone(pytz.utc).year
+            ct_text = ("Exactly {} years ago in {} it was {}, but "
+                       "right now it is {} in {}").format(
+                tnow_year - ct_utc_year,
+                tz_name,
+                chosen_time.strftime("%H:%M %Z"),
+                mins_text,
+                tnow_local.tzname()
+            )
+            return ct_text
+    return None
 
-nextTZChange(tnowUTC, pytz.utc)
-nextTZChange(tnowUTC, pytz.timezone("Pacific/Auckland"))
-lastTZChange(tnowUTC, pytz.timezone("Pacific/Auckland"))
-lastTZChange(tnowUTC, pytz.utc)
-lastTZChange(tnowUTC, pytz.timezone("Asia/Shanghai"))
 
-formerOffset(tnowUTC, pytz.timezone("Pacific/Auckland"))[-1].strftime("%c %Z")
-formerOffset(tnowUTC, pytz.timezone("Pacific/Auckland"))
-formerOffset(tnowUTC, pytz.timezone("Asia/Shanghai"))
-formerOffset(tnowUTC, pytz.timezone("UTC"))
-formerOffset(tnowUTC, pytz.timezone("America/Mexico_City"))
+def textRandomTimezone(time_now, tz_options):
+    tz_name = choice(tz_options)
+    tz_obj = pytz.timezone(tz_name)
+    time_local = time_now.astimezone(tz_obj)
+    rtz_text = ("It is {} in {}").format(
+        time_local.strftime("%H:%M %Z on %A %-d %B %Y"),
+        tz_name
+    )
+    return rtz_text
+
+
+def randomTimeText(time_now, tz_options):
+    r = randint(0, 999)
+    if r < 25:
+        t_text = textIFC(time_now, tz_options)
+    elif r < 50:
+        t_text = textNextOffset(time_now, tz_options)
+    elif r < 100:
+        t_text = text5OClock(time_now, tz_options)
+    elif r < 150:
+        t_text = textBeats(time_now)
+    elif r < 250:
+        t_text = textLastOffset(time_now, tz_options)
+    elif r < 400:
+        t_text = textFormerOffset(time_now, tz_options)
+    elif r < 700:
+        t_text = textDecimalTime(time_now, tz_options)
+    else:
+        t_text = textRandomTimezone(time_now, tz_options)
+    if t_text is None:
+        t_text = textDecimalTime(time_now, tz_options)
+    return t_text
+
+
+def main(mastodon_connection=None):
+    t_now_utc = dt.datetime.now(pytz.utc)
+    toot_text = randomTimeText(t_now_utc, pytz.common_timezones)
+    if mastodon_connection is None:
+        print(t_now_utc.strftime("%c %Z:"))
+        print(toot_text)
+        print()
+
