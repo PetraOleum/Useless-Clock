@@ -363,7 +363,7 @@ if __name__ == "__main__":
         print(toot_text)
         print()
     else:
-        mast_usr = Mastodon(access_token=args.usercred,
+        mast_usr = Mastodon(access_token=args.usercred_path,
                             api_base_url=args.server,
                             ratelimit_method='wait')
         mast_usr.status_post(toot_text, visibility=args.post_visibility)
