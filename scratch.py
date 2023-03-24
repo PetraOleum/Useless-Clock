@@ -3,36 +3,9 @@ import pytz
 import datetime as dt
 from math import floor
 from random import shuffle, choice, randint
+import argparse
+from mastodon import Mastodon
 
-tz
-
-tzname = "Pacific/Auckland"
-
-t1915 = dt.datetime(1915, 1, 1)
-td800d = dt.timedelta(days=800)
-td0 = dt.timedelta(seconds=0)
-
-tz = pytz.timezone(tzname)
-
-tnowUTC = dt.datetime.now(pytz.utc)
-
-tzchanges = [{
-    "start": t[0].astimezone(pytz.utc),
-    "fromNow": t[0].astimezone(pytz.utc) - tnowUTC,
-    "utcOffset": t[1][0],
-    "tzName": t[1][2],
-    "dstOffset": t[1][1]
-} for t in zip(tz._utc_transition_times,
-                tz._transition_info) if t[0] > t1915]
-
-tzchange_near = [t for t in tzchanges
-                 if abs(t["fromNow"]) <= td800d]
-
-
-tzchange_past = [t for t in tzchanges
-                 if t["fromNow"] < td0]
-tzchange_future = [t for t in tzchanges
-                 if t["fromNow"] > td0]
 
 def isLeapYear(date):
     year = date.year
@@ -146,7 +119,8 @@ def textIFC(time_now, tz_options):
     tz_name = choice(tz_options)
     tz_choice = pytz.timezone(tz_name)
     IFC_date = IFCDate(time_now, tz_choice)
-    IFC_text = "It's {} {} {} {} in {} by the IFC calendar".format(
+    IFC_text = ("It's {} {} {} {} in {} by the "
+                "International Fixed Calendar").format(
         IFCDayName(IFC_date),
         IFC_date[2],
         IFCMonthName(IFC_date),
@@ -272,14 +246,14 @@ def formerOffset(time_now, tz, tolerance_days = 366):
     time_now_utc = time_now.astimezone(pytz.utc)
     local_time = time_now.astimezone(tz)
     tzchanges = findTZChanges(time_now, tz)
-    diffTolerance = dt.timedelta(days = tolerance_days)
+    diffT = dt.timedelta(days = tolerance_days)
     tzchanges_past = [t for t in tzchanges
-                        if t["fromNow"] < -difft]
+                        if t["fromNow"] < -diffT]
     if len(tzchanges_past) < 2:
         return []
     tzchanges_past = tzchanges_past[1:]
     offsets_close = [t["utcOffset"].total_seconds() for t in tzchanges if
-                     t["fromNow"] <= difft and t["fromNow"] >= -difft] + [local_time.utcoffset().total_seconds()]
+                     t["fromNow"] <= diffT and t["fromNow"] >= -diffT] + [local_time.utcoffset().total_seconds()]
     tzchanges_diff = [t for t in tzchanges_past if
                       t["utcOffset"].total_seconds() not in offsets_close]
     shuffle(tzchanges_diff)
@@ -365,11 +339,32 @@ def randomTimeText(time_now, tz_options):
     return t_text
 
 
-def main(mastodon_connection=None):
+if __name__ == "__main__":
+    argparser = argparse.ArgumentParser(
+        description="Useless Clock mastodon bot")
+    argparser.add_argument("--debug", help="Debug (don't post to mastodon)",
+                           dest="debug", action="store_true")
+    argparser.add_argument("--usercred",
+                           help=("Usercred filepath. "
+                                 "Default: usercred.secret"),
+                           dest="usercred_path", default="usercred.secret")
+    argparser.add_argument("--server",
+                           help=("Mastodon server. "
+                                 "Default: https://botsin.space"),
+                           dest="server", default="https://botsin.space")
+    argparser.add_argument("--visibility",
+                           help="Post visibility. Default: public",
+                          dest="post_visibility", default="public")
+    args = argparser.parse_args()
     t_now_utc = dt.datetime.now(pytz.utc)
     toot_text = randomTimeText(t_now_utc, pytz.common_timezones)
-    if mastodon_connection is None:
+    if args.debug:
         print(t_now_utc.strftime("%c %Z:"))
         print(toot_text)
         print()
+    else:
+        mast_usr = Mastodon(access_token=args.usercred,
+                            api_base_url=args.server,
+                            ratelimit_method='wait')
+        mast_usr.status_post(toot_text, visibility=args.post_visibility)
 
