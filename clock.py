@@ -1,7 +1,7 @@
 # https://stackoverflow.com/questions/7594656/how-to-determine-when-dst-starts-or-ends-in-a-specific-location-in-python
 import pytz
 import datetime as dt
-from math import floor
+from math import floor, ceil
 from random import shuffle, choice, randint
 import argparse
 from mastodon import Mastodon
@@ -19,6 +19,21 @@ def isLeapYear(date):
             return True
     else:
         return False
+
+
+def intToZero(Rval):
+    if Rval < 0:
+        return ceil(Rval)
+    else:
+        return floor(Rval)
+
+
+def julianDifference(year):
+    return floor(year / 100) - floor(year / 400) - 2
+
+
+def julGregLeapYear(year):
+    return (year % 100 == 0) and not (year % 400 == 0)
 
 
 def decimalTime(time_now, time_zone=None):
@@ -316,21 +331,104 @@ def textRandomTimezone(time_now, tz_options):
     return rtz_text
 
 
+def julianDate(gregDate):
+    gregYear = gregDate.year
+    dayName = gregDate.strftime("%A")
+    juldif = julianDifference(gregYear)
+    if julGregLeapYear(gregYear):
+        gregFeb28 = dt.date(gregYear, 2, 28)
+        Feb29greg = gregFeb28 + dt.timedelta(days = juldif)
+        if gregDate < Feb29greg:
+            juldateAprox = gregDate - dt.timedelta(days = juldif - 1)
+            return (juldateAprox.year, juldateAprox.month, juldateAprox.day,
+                    juldateAprox.strftime("%B"), dayName)
+        elif gregDate > Feb29greg:
+            juldateAprox = gregDate - dt.timedelta(days = juldif)
+            return (juldateAprox.year, juldateAprox.month, juldateAprox.day,
+                    juldateAprox.strftime("%B"), dayName)
+        else:
+            return (gregYear, 2, 29, gregFeb28.strftime("%B"), dayName)
+    else:
+        juldateAprox = gregDate - dt.timedelta(days = juldif)
+        return (juldateAprox.year, juldateAprox.month, juldateAprox.day,
+                juldateAprox.strftime("%B"), dayName)
+
+
+def textOldStyle(time_now, tz_options):
+    tz_name = choice(tz_options)
+    tz_obj = pytz.timezone(tz_name)
+    time_local = time_now.astimezone(tz_obj)
+    date_local = time_local.date()
+    jdate_local = julianDate(date_local)
+    gregt = choice(["N.S.", "as a New Style date", "in the Gregorian calendar"])
+    greg_text = "{} {}".format(
+        date_local.strftime("%-d %B %Y"),
+        gregt
+    )
+    jult = choice(["O.S.", "as an Old Style date", "in the Julian calendar"])
+    jul_text = "{} {}".format(
+        "{} {} {}".format(jdate_local[2], jdate_local[3], jdate_local[0]),
+        jult
+    )
+    os_text1 = "{} is {}".format(
+        greg_text,
+        jul_text
+    )
+    os_text2 = "{} is {}".format(
+        jul_text,
+        greg_text
+    )
+    return choice([os_text1, os_text2])
+
+
+def JDN_j(julDate):
+    jY = julDate[0]
+    jM = julDate[1]
+    jD = julDate[2]
+    JDN = (367 * jY - intToZero((7 * (jY + 5001 + intToZero((jM - 9)/7)))/4) +
+           intToZero((275 * jM)/9) + jD + 1729777)
+    return JDN
+
+
+def JDN(gregDate):
+    julDate = julianDate(gregDate)
+    return JDN_j(julDate)
+
+
+def JD(utcDT):
+    JDnum = JDN(utcDT.date())
+    JDfull = (JDnum - 0.5 + utcDT.hour / 24 + utcDT.minute / (24 * 60) +
+              utcDT.second / (24*60*60) +
+              utcDT.microsecond / (24 * 60 * 60 * 1000000))
+    return(JDfull)
+
+
+def textJulianDate(time_now, decimal=5):
+    JDNow = JD(time_now)
+    JDRound = JDNow if decimal is None else round(JDNow, decimal)
+    JD_text = f"The Julian Date is {JDRound}"
+    return JD_text
+
+
 def randomTimeText(time_now, tz_options):
     r = randint(0, 999)
     if r < 25:
         t_text = textIFC(time_now, tz_options)
     elif r < 50:
-        t_text = textNextOffset(time_now, tz_options)
+        t_text = textOldStyle(time_now, tz_options)
     elif r < 100:
-        t_text = text5OClock(time_now, tz_options)
+        t_text = textNextOffset(time_now, tz_options)
     elif r < 150:
+        t_text = text5OClock(time_now, tz_options)
+    elif r < 200:
         t_text = textBeats(time_now)
-    elif r < 250:
-        t_text = textLastOffset(time_now, tz_options)
+    elif r < 300:
+        t_text = textJulianDate(time_now)
     elif r < 400:
+        t_text = textLastOffset(time_now, tz_options)
+    elif r < 550:
         t_text = textFormerOffset(time_now, tz_options)
-    elif r < 700:
+    elif r < 800:
         t_text = textDecimalTime(time_now, tz_options)
     else:
         t_text = textRandomTimezone(time_now, tz_options)
