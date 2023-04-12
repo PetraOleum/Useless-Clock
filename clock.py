@@ -5,6 +5,41 @@ from math import floor, ceil
 from random import shuffle, choice, randint
 import argparse
 from mastodon import Mastodon
+import re
+
+
+def betterTZ(time_with_tz, always_offset = False):
+    tzname = time_with_tz.tzname()
+    textual_tzname = ((re.search(r"[^+\-0-9:]", tzname)
+                      is not None) and
+                      (re.search(r"UTC", tzname) is None))
+    tzoffset = time_with_tz.utcoffset().total_seconds()
+    abs_offset = round(abs(tzoffset))
+    offset_negative = tzoffset < 0
+    hour_offset = abs_offset // (60*60)
+    hr_offset = abs_offset % (60*60)
+    minute_offset = hr_offset // 60
+    second_offset = hr_offset % 60
+    if second_offset > 0:
+        o_t = "{0}:{1:02d}:{2:02d}".format(
+            hour_offset,
+            minute_offset,
+            second_offset
+        )
+    else:
+        o_t = "{0}:{1:02d}".format(
+            hour_offset,
+            minute_offset
+        )
+    offset_text = ("UTC" +
+                   ("-" if offset_negative else "+") +
+                   o_t)
+    if not textual_tzname:
+        return offset_text
+    elif always_offset:
+        return f"{tzname} ({offset_text})"
+    else:
+        return tzname
 
 
 def isLeapYear(date):
@@ -322,13 +357,19 @@ def textFormerOffset(time_now, tz_options):
             else:
                 mins_text = "{} minutes earlier".format(-mins_later)
             ct_utc_year = chosen_time.astimezone(pytz.utc).year
-            ct_text = ("Exactly {} years ago in {} it was {}, but "
+            btz_chosen = betterTZ(chosen_time, False)
+            btz_now = betterTZ(tnow_local, False)
+            if btz_chosen == btz_now:
+                btz_chosen = betterTZ(chosen_time, True)
+                btz_now = betterTZ(tnow_local, True)
+            ct_text = ("Exactly {} years ago in {} it was {} {}, but "
                        "right now it is {} in {}").format(
                 tnow_year - ct_utc_year,
                 tz_name,
-                chosen_time.strftime("%H:%M %Z"),
+                chosen_time.strftime("%H:%M"),
+                btz_chosen,
                 mins_text,
-                tnow_local.tzname()
+                btz_now
             )
             return ct_text
     return None
@@ -338,8 +379,10 @@ def textRandomTimezone(time_now, tz_options):
     tz_name = choice(tz_options)
     tz_obj = pytz.timezone(tz_name)
     time_local = time_now.astimezone(tz_obj)
-    rtz_text = ("It is {} in {}").format(
-        time_local.strftime("%H:%M %Z on %A %-d %B %Y"),
+    rtz_text = ("It is {} {} on {} in {}").format(
+        time_local.strftime("%H:%M"),
+        betterTZ(time_local),
+        time_local.strftime("%A %-d %B %Y"),
         tz_name
     )
     return rtz_text
