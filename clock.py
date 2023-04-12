@@ -467,8 +467,10 @@ def textJulianDate(time_now, decimal=5):
     return JD_text
 
 
-def randomTimeText(time_now, tz_options):
+def randomTimeText(time_now, tz_options, debug = False):
     r = randint(0, 999)
+    if debug:
+        print(f"Seed: {r:03d}")
     if r < 25:
         t_text = textIFC(time_now, tz_options)
     elif r < 50:
@@ -512,7 +514,9 @@ if __name__ == "__main__":
                           dest="post_visibility", default="public")
     args = argparser.parse_args()
     t_now_utc = dt.datetime.now(pytz.utc)
-    toot_text = randomTimeText(t_now_utc, pytz.common_timezones)
+    toot_text = randomTimeText(t_now_utc,
+                               pytz.common_timezones,
+                               args.debug)
     if args.debug:
         print(t_now_utc.strftime("%c %Z:"))
         print(toot_text)
