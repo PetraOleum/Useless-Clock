@@ -60,12 +60,12 @@ def textDecimalTime(time_now, tz_options):
 
 def timeBeats(time_now):
     utc1_dec = decimalTime(time_now, pytz.FixedOffset(60))
-    return "@{}".format(utc1_dec[0] * 100 + utc1_dec[1])
+    return "@{0}{1:02d}".format(utc1_dec[0], utc1_dec[1])
 
 
 def textBeats(time_now):
     beats_time = timeBeats(time_now)
-    beats_text = "Set your watches, it's {} internet time!".format(beats_time)
+    beats_text = f"Set your watches, it's {beats_time} internet time!"
     return beats_text
 
 
@@ -166,13 +166,27 @@ def text5OClock(time_now, tz_options):
     found_tz = fiveOClockSomewhere(time_now, tz_options)
     if found_tz is None:
         return None
-    if found_tz[1] < 0:
-        text = "It's {} minute{} to 5pm in {}"
+    floor_minutes = floor(found_tz[1])
+    if floor_minutes < -1:
+        text = "It's {} minutes to 5pm in {}".format(
+            -floor_minutes,
+            found_tz[0]
+        )
+    elif floor_minutes == -1:
+        text = "It's almost 5pm in {}!".format(
+            found_tz[0]
+        )
+    elif floor_minutes == 0:
+        text = "It's 5pm in {}!".format(
+            found_tz[0]
+        )
     else:
-        text = "It's {} minute{} past 5pm in {}"
-    return text.format(round(abs(found_tz[1])),
-                       ("" if round(abs(found_tz[1])) == 1 else "s"),
-                       found_tz[0])
+        text = "It's {} minute{} past 5pm in {}".format(
+            floor_minutes,
+            ("" if floor_minutes == 1 else "s"),
+            found_tz[0]
+        )
+    return text
 
 
 def findTZChanges(time_now, tz):
@@ -406,7 +420,7 @@ def JD(utcDT):
 def textJulianDate(time_now, decimal=5):
     JDNow = JD(time_now)
     JDRound = JDNow if decimal is None else round(JDNow, decimal)
-    JD_text = f"The Julian Date is {JDRound}"
+    JD_text = f"The current Julian Date is {JDRound}"
     return JD_text
 
 
