@@ -477,13 +477,13 @@ def randomTimeText(time_now, tz_options):
         t_text = textNextOffset(time_now, tz_options)
     elif r < 150:
         t_text = text5OClock(time_now, tz_options)
-    elif r < 200:
+    elif r < 250:
         t_text = textBeats(time_now)
-    elif r < 300:
+    elif r < 350:
         t_text = textJulianDate(time_now)
-    elif r < 400:
+    elif r < 450:
         t_text = textLastOffset(time_now, tz_options)
-    elif r < 550:
+    elif r < 600:
         t_text = textFormerOffset(time_now, tz_options)
     elif r < 800:
         t_text = textDecimalTime(time_now, tz_options)
