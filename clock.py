@@ -507,8 +507,12 @@ if __name__ == "__main__":
                            dest="usercred_path", default="usercred.secret")
     argparser.add_argument("--server",
                            help=("Mastodon server. "
-                                 "Default: https://botsin.space"),
-                           dest="server", default="https://botsin.space")
+                                 "Default: https://mastodon.social"),
+                           dest="server", default="https://mastodon.social")
+    argparser.add_argument("--no-check-api-version",
+                           help=("Don't check API version. "
+                                 "Useful for other servers like GtS"),
+                           dest="no_check_api", action="store_true")
     argparser.add_argument("--visibility",
                            help="Post visibility. Default: public",
                           dest="post_visibility", default="public")
@@ -517,6 +521,7 @@ if __name__ == "__main__":
     toot_text = randomTimeText(t_now_utc,
                                pytz.common_timezones,
                                args.debug)
+    ver_checkmode = "none" if args.no_check_api else "created"
     if args.debug:
         print(t_now_utc.strftime("%c %Z:"))
         print(toot_text)
@@ -524,6 +529,7 @@ if __name__ == "__main__":
     else:
         mast_usr = Mastodon(access_token=args.usercred_path,
                             api_base_url=args.server,
-                            ratelimit_method='wait')
+                            ratelimit_method='wait',
+                            version_check_mode=ver_checkmode)
         mast_usr.status_post(toot_text, visibility=args.post_visibility)
 
